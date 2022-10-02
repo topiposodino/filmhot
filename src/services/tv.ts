@@ -1,79 +1,72 @@
+import { DetailType } from "../shared/types";
 import axios from "../shared/axios";
-import {
-  DetailSeason,
-  FilmInfo,
-  getWatchReturnedType,
-  Item,
-  Reviews,
-  Video,
-} from "../shared/types";
 
-export const getTVFullDetail = async (id: number): Promise<FilmInfo> => {
-  const response = await Promise.all([
-    axios.get(`/tv/${id}`),
-    axios.get(`/tv/${id}/credits`),
-    axios.get(`/tv/${id}/reviews`),
-    axios.get(`/tv/${id}/similar`),
-    axios.get(`/tv/${id}/videos`),
-  ]);
+export const getTVDetail = async (
+  id: string,
+  episodeIndex: number
+): Promise<{
+  data: DetailType;
+  sources: { quality: number; url: string }[];
+  subtitles: { language: string; url: string; lang: string }[];
+}> => {
+  const data = (
+    await axios.get("movieDrama/get", {
+      params: {
+        id,
+        category: 1,
+      },
+    })
+  ).data.data;
 
-  const tvInfo = response.reduce((final, current, index) => {
-    switch (index) {
-      case 0:
-        final.detail = { ...current.data, media_type: "tv" };
-        break;
-
-      case 1:
-        final.credits = current.data.cast.slice(0, 8);
-        break;
-
-      case 2:
-        final.reviews = current.data.results.filter(
-          (item: Reviews) => item.author !== "MSB"
-        );
-        break;
-
-      case 3:
-        final.similar = current.data.results.map((item: Item) => ({
-          ...item,
-          media_type: "tv",
-        }));
-        break;
-
-      case 4:
-        final.videos = current.data.results
-          .filter((item: Video) => item.site === "YouTube")
-          .reduce((acc: any, current: Video) => {
-            if (current.type === "Trailer") return [current, ...acc];
-            else return [...acc, current];
-          }, [] as Video[]);
-        break;
-    }
-
-    return final;
-  }, {} as FilmInfo);
-
-  return tvInfo;
-};
-
-export const getWatchTV = async (id: number): Promise<getWatchReturnedType> => {
-  const res = await Promise.all([
-    axios.get(`/tv/${id}`),
-    axios.get(`/tv/${id}/recommendations`),
-  ]);
-
-  const data = {
-    detail: res[0].data,
-    recommendations: res[1].data.results,
-  };
-
-  const detailSeasons = (
+  const sources = (
     await Promise.all(
-      data.detail.seasons.map((season: DetailSeason) =>
-        axios.get(`/tv/${id}/season/${season.season_number}`)
+      data.episodeVo[episodeIndex].definitionList.map(
+        async (quality: any) =>
+          (
+            await axios.get("media/previewInfo", {
+              params: {
+                category: 1,
+                contentId: id,
+                episodeId: data.episodeVo[episodeIndex].id,
+                definition: quality.code,
+              },
+            })
+          ).data.data.mediaUrl
       )
     )
-  ).map((res) => res.data);
+  )
+    .map((url, index) => ({
+      quality: Number(
+        data.episodeVo[episodeIndex].definitionList[index].description
+          .toLowerCase()
+          .replace("p", "")
+      ),
+      url,
+    }))
+    .sort((a, b) => b.quality - a.quality);
 
-  return { ...data, detailSeasons };
+  const subtitles = data.episodeVo[episodeIndex].subtitlingList
+    .map((sub: any) => ({
+      language: `${sub.language}${sub.translateType ? " (Auto)" : ""}`,
+      url: sub.subtitlingUrl,
+      lang: sub.languageAbbr,
+    }))
+    .reduce((acc: any, element: any) => {
+      if (element.lang === "en") {
+        return [element, ...acc];
+      }
+      return [...acc, element];
+    }, [])
+    .reduce((acc: any, element: any) => {
+      if (element.lang === "vi") {
+        return [element, ...acc];
+      }
+      return [...acc, element];
+    }, []);
+
+  return {
+    data,
+    sources,
+    subtitles,
+  };
 };

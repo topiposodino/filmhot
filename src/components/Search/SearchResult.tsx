@@ -1,75 +1,65 @@
-import { useQuery } from "@tanstack/react-query";
-import { FunctionComponent } from "react";
+import Error from "../Error";
+import { FC } from "react";
 import { LazyLoadImage } from "react-lazy-load-image-component";
-
-import { getSearchResult } from "../../services/search";
-import { ItemsPage } from "../../shared/types";
-import FilmItem from "../Common/FilmItem";
-import Skeleton from "../Common/Skeleton";
-import Pagination from "./Pagination";
+import { Link } from "react-router-dom";
+import Skeleton from "../Skeleton";
+import { resizeImage } from "../../shared/constants";
+import { searchWithKeyword } from "../../services/search";
+import useSWR from "swr";
 
 interface SearchResultProps {
-  currentTab: string;
   query: string;
-  page: number;
 }
 
-const SearchResult: FunctionComponent<SearchResultProps> = ({
-  currentTab,
-  query,
-  page,
-}) => {
-  const { data, error, isPreviousData } = useQuery<ItemsPage, Error>(
-    ["search-result", currentTab, query, page],
-    () => getSearchResult(currentTab, query, page),
-    {
-      keepPreviousData: true,
-    }
+const SearchResult: FC<SearchResultProps> = ({ query }) => {
+  const { data, error } = useSWR(`search-${query}`, () =>
+    searchWithKeyword(query)
   );
 
-  if (error) return <div>ERROR: ${error.message}</div>;
-
-  const changePageHandler = (page: number): string => {
-    if (isPreviousData) return "";
-    return `/search?query=${encodeURIComponent(query)}&page=${page}`;
-  };
+  if (error) return <Error />;
 
   return (
-    <div className="md:mt-32 mt-7 px-[2vw]">
-      <p className="text-white md:text-xl text-lg mb-6">
-        Search results for "{query}" ({data?.total_results} results found)
-      </p>
-      {data && data.results.length === 0 && (
-        <div className="flex flex-col items-center mb-12">
-          <LazyLoadImage
-            src="/error.png"
-            alt=""
-            effect="opacity"
-            className="w-[600px]"
-          />
-          <p className="text-white text-3xl mt-5">There is no such films</p>
-        </div>
-      )}
-      <ul className="grid grid-cols-sm md:grid-cols-lg gap-x-8 gap-y-10">
-        {data &&
-          data.results.map((item) => (
-            <li key={item.id}>
-              <FilmItem item={item} />
-            </li>
+    <div className="grid gap-6 grid-cols-sm md:grid-cols-lg">
+      {!data ? (
+        <>
+          {[...new Array(20)].map((_, index) => (
+            <div key={index} className="relative h-0 pb-[163%]">
+              <Skeleton className="absolute top-0 left-0 w-full h-full rounded" />
+            </div>
           ))}
-        {!data &&
-          [...new Array(15)].map((_, index) => (
-            <li key={index}>
-              <Skeleton className="h-0 pb-[160%]" />
-            </li>
+        </>
+      ) : data.length === 0 ? (
+        <div>No result found</div>
+      ) : (
+        <>
+          {data.map((item) => (
+            <Link
+              title={item.name}
+              to={
+                item.domainType === 0 ? `/movie/${item.id}` : `/tv/${item.id}`
+              }
+              key={item.id}
+              className="relative h-0 pb-[163%] bg-dark-lighten rounded overflow-hidden group"
+            >
+              <div className="absolute top-0 left-0 w-full h-full flex flex-col items-stretch">
+                <div className="relative w-full h-0 pb-[140%] flex-shrink-0 group-hover:brightness-[80%] transition duration-300">
+                  <LazyLoadImage
+                    effect="opacity"
+                    className="absolute top-0 left-0 w-full h-full object-cover"
+                    src={resizeImage(item.coverVerticalUrl, "250")}
+                    alt=""
+                  />
+                </div>
+
+                <div className="flex-grow flex items-center">
+                  <h1 className="w-full whitespace-nowrap overflow-hidden text-ellipsis px-2 group-hover:text-primary transition duration-300">
+                    {item.name}
+                  </h1>
+                </div>
+              </div>
+            </Link>
           ))}
-      </ul>
-      {data && (
-        <Pagination
-          maxPage={data.total_pages}
-          currentPage={data.page}
-          onChangePage={changePageHandler}
-        />
+        </>
       )}
     </div>
   );

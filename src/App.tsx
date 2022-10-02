@@ -1,89 +1,38 @@
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, onSnapshot } from "firebase/firestore";
-import { useEffect, useState } from "react";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { FC, useEffect } from "react";
+import { Route, Routes } from "react-router-dom";
 
-import Protected from "./components/Common/Protected";
-import Auth from "./pages/Auth";
-import Bookmarked from "./pages/Bookmarked";
-import Error from "./pages/Error";
+import Category from "./pages/Category";
+import Discovery from "./pages/Discovery";
 import Explore from "./pages/Explore";
 import History from "./pages/History";
 import Home from "./pages/Home";
-import MovieInfo from "./pages/Movie/MovieInfo";
-import MovieWatch from "./pages/Movie/MovieWatch";
-import Profile from "./pages/Profile";
+import Movie from "./pages/Movie";
 import Search from "./pages/Search";
-import TVInfo from "./pages/TV/TVInfo";
-import TVWatch from "./pages/TV/TVWatch";
-import { auth, db } from "./shared/firebase";
-import { useAppDispatch } from "./store/hooks";
-import { setCurrentUser } from "./store/slice/authSlice";
+import SignIn from "./pages/SignIn";
+import TV from "./pages/TV";
+import { auth } from "./shared/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { useLocation } from "react-router-dom";
+import { useStore } from "./store";
 
-function App() {
+const App: FC = () => {
+  const setCurrentUser = useStore((state) => state.setCurrentUser);
   const location = useLocation();
-  const dispatch = useAppDispatch();
-  // const currentUser = useAppSelector((state) => state.auth.user);
-  const [isSignedIn, setIsSignedIn] = useState(
-    Number(localStorage.getItem("isSignedIn")) ? true : false
-  );
 
   useEffect(() => {
     onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        dispatch(setCurrentUser(null));
-        setIsSignedIn(false);
-        localStorage.setItem("isSignedIn", "0");
-        return;
-      }
-
-      setIsSignedIn(true);
-      localStorage.setItem("isSignedIn", "1");
-
-      if (user.providerData[0].providerId === "google.com") {
-        onSnapshot(doc(db, "users", user.uid), (doc) => {
-          dispatch(
-            setCurrentUser({
-              displayName:
-                doc.data()?.lastName + " " + doc.data()?.firstName || "",
-              email: user.email,
-              emailVerified: user.emailVerified,
-              photoURL: doc.data()?.photoUrl || "",
-              uid: user.uid,
-            })
-          );
-        });
-      } else if (user.providerData[0].providerId === "facebook.com") {
-        onSnapshot(doc(db, "users", user.uid), (doc) => {
-          dispatch(
-            setCurrentUser({
-              displayName:
-                doc.data()?.lastName + " " + doc.data()?.firstName || "",
-              email: user.email,
-              emailVerified: user.emailVerified,
-              photoURL: doc.data()?.photoUrl || "",
-              // user.photoURL + "?access_token=" + doc.data()?.token || "",
-              // doc.data()?.photoUrl.startsWith("https://i.ibb.co") ?
-              uid: user.uid,
-            })
-          );
+      if (user) {
+        setCurrentUser({
+          uid: user.uid,
+          email: user.email,
+          photoURL: user.photoURL,
+          displayName: user.displayName,
         });
       } else {
-        onSnapshot(doc(db, "users", user.uid), (doc) => {
-          dispatch(
-            setCurrentUser({
-              displayName:
-                doc.data()?.lastName + " " + doc.data()?.firstName || "",
-              photoURL: doc.data()?.photoUrl || "",
-              email: user.email,
-              emailVerified: user.emailVerified,
-              uid: user.uid,
-            })
-          );
-        });
+        setCurrentUser(null);
       }
     });
-  }, [dispatch]);
+  }, []);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -92,36 +41,16 @@ function App() {
   return (
     <Routes>
       <Route index element={<Home />} />
-      <Route path="movie/:id" element={<MovieInfo />} />
-      <Route path="tv/:id" element={<TVInfo />} />
-      <Route path="movie/:id/watch" element={<MovieWatch />} />
-      <Route path="tv/:id/watch" element={<TVWatch />} />
-      <Route path="explore" element={<Explore />} />
+      <Route path="movie/:id" element={<Movie />} />
+      <Route path="tv/:id" element={<TV />} />
       <Route path="search" element={<Search />} />
-      <Route path="auth" element={<Auth />} />
-      <Route
-        path="bookmarked"
-        element={
-          <Protected isSignedIn={isSignedIn}>
-            <Bookmarked />
-          </Protected>
-        }
-      />
-      <Route
-        path="history"
-        element={<Protected isSignedIn={isSignedIn}>{<History />}</Protected>}
-      />
-      <Route
-        path="profile"
-        element={
-          <Protected isSignedIn={isSignedIn}>
-            <Profile />
-          </Protected>
-        }
-      />
-      <Route path="*" element={<Error />} />
+      <Route path="explore" element={<Explore />} />
+      <Route path="sign-in" element={<SignIn />} />
+      <Route path="history" element={<History />} />
+      <Route path="category/:id" element={<Category />} />
+      <Route path="discovery" element={<Discovery />} />
     </Routes>
   );
-}
+};
 
 export default App;

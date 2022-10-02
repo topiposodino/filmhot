@@ -1,14 +1,20 @@
-export const API_URL = "https://api.themoviedb.org/3";
-export const IMAGE_URL = "https://image.tmdb.org/t/p";
-export const EMBED_URL = "https://2embed.org/embed";
-export const EMBED_VIDSRC = "https://vidsrc.me/embed";
-export const EMBED_TO = "https://www.2embed.to/embed/tmdb";
+export const resizeImage = (url: string, width = "", height = "") =>
+  url.startsWith("https://graph.facebook.com/")
+    ? url
+    : `https://images.weserv.nl/?url=${encodeURIComponent(
+        url
+      )}&w=${width}&h=${height}&fit=outside`;
 
-export const SUPPORTED_QUERY = {
-  genre: [],
-  sort_by: [],
-  minRuntime: [],
-  maxRuntime: [],
-  from: [],
-  to: [],
+export const subtitleProxy = (url: string) =>
+  `https://srt-to-vtt.vercel.app?url=${encodeURIComponent(url)}`;
+
+export const IMAGE_CARD_SIZE = {
+  0: {
+    width: 200,
+    height: 100,
+  },
+  1: {
+    width: 175,
+    height: 246,
+  },
 };
